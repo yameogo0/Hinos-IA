@@ -2,8 +2,8 @@
 // Configuration pour Hinos IA avec Groq (Llama 3.3) OU OpenAI (GPT)
 
 // 🔑 INSÉREZ VOS DEUX CLÉS API ICI
-const GROQ_API_KEY = "gsk_votre_clé_groq_ici";      // Votre clé Groq
-const OPENAI_API_KEY = "sk-votre_clé_openai_ici";   // Votre clé OpenAI
+const GROQ_API_KEY = "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";      // Votre clé Groq
+const OPENAI_API_KEY = "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";   // Votre clé OpenAI
 
 // Choisissez quel modèle utiliser par défaut : "groq" ou "openai"
 const DEFAULT_PROVIDER = "groq";  // Changez pour "openai" si vous préférez GPT
