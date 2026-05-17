@@ -2,10 +2,10 @@
 // Configuration pour Hinos IA avec Groq (Llama 3.3)
 
 // 🔑 INSÉREZ VOTRE CLÉ API ICI (remplacez "votre_clé_ici")
-const GROQ_API_KEY = "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";
+const GROQ_API_KEY = "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;
 
 // Vérification que la clé existe
-if (!GROQ_API_KEY || GROQ_API_KEY === "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") {
+if (!GROQ_API_KEY || GROQ_API_KEY === "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") {
   console.error("❌ Erreur: Veuillez insérer votre clé API Groq dans le fichier pi-ai-config.ts");
 }
 
