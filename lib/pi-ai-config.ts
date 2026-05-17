@@ -2,7 +2,7 @@
 // Configuration pour Hinos IA avec Groq (Llama 3.3)
 
 // 🔑 VOTRE CLÉ API GROQ
-const GROQ_API_KEY = "gsk_fp38SLYgtTSo32z5Gm2CWdyb3FY2aedrG3K57Wfq6kJJjt7dIHD";
+const GROQ_API_KEY = "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";
 
 // Configuration pour l'API Groq
 export const GROQ_CONFIG = {
