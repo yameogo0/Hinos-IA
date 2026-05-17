@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Stockage persistant (à remplacer par une base de données en production)
-// Pour l'instant, on garde en mémoire mais attention aux pertes
+// ⚠️ À remplacer par une base de données en production (PostgreSQL, MongoDB, etc.)
+// Pour le développement, on garde en mémoire mais les données sont perdues au redéploiement
 const userSubscriptions = new Map<string, {
   tier: 'free' | 'pro' | 'business';
   requestsToday: number;
@@ -11,7 +11,6 @@ const userSubscriptions = new Map<string, {
 // ✅ Fonction pour vérifier le token Pi Network
 async function verifyPiToken(accessToken: string): Promise<string | null> {
   try {
-    // Vérifier le token avec l'API Pi Network
     const response = await fetch('https://api.minepi.com/v2/me', {
       headers: {
         'Authorization': `Bearer ${accessToken}`
@@ -21,10 +20,21 @@ async function verifyPiToken(accessToken: string): Promise<string | null> {
     if (!response.ok) return null;
     
     const userData = await response.json();
-    return userData.uid; // Retourne l'UID unique de l'utilisateur Pi
+    return userData.uid;
   } catch (error) {
-    console.error('Erreur vérification token Pi:', error);
+    console.error('❌ Erreur vérification token Pi:', error);
     return null;
+  }
+}
+
+// ✅ Fonction pour initialiser un utilisateur (ajouté)
+function initializeUser(userId: string, tier: 'free' | 'pro' | 'business' = 'free') {
+  if (!userSubscriptions.has(userId)) {
+    userSubscriptions.set(userId, {
+      tier: tier,
+      requestsToday: 0,
+      lastResetDate: new Date().toDateString()
+    });
   }
 }
 
@@ -41,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const piAccessToken = authHeader.replace('Bearer ', '');
     
-    // ✅ 2. VALIDER le token Pi Network (correction importante)
+    // ✅ 2. VALIDER le token Pi Network
     const userId = await verifyPiToken(piAccessToken);
     if (!userId) {
       return NextResponse.json(
@@ -50,7 +60,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ 3. Vérifier l'abonnement
+    // ✅ 3. Initialiser l'utilisateur s'il n'existe pas
+    initializeUser(userId);
+
+    // ✅ 4. Vérifier l'abonnement
     const userSub = userSubscriptions.get(userId);
     if (!userSub || userSub.tier === 'free') {
       return NextResponse.json(
@@ -59,28 +72,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ 4. Vérifier les limites quotidiennes (optionnel)
+    // ✅ 5. Vérifier les limites quotidiennes
     const today = new Date().toDateString();
     if (userSub.lastResetDate !== today) {
       userSub.requestsToday = 0;
       userSub.lastResetDate = today;
     }
     
-    if (userSub.tier === 'pro' && userSub.requestsToday >= 50) {
-      return NextResponse.json(
-        { error: 'Limite quotidienne d\'analyses (50) atteinte pour le forfait Pro.' },
-        { status: 429 }
-      );
-    }
+    const dailyLimit = userSub.tier === 'pro' ? 50 : 500;
     
-    if (userSub.tier === 'business' && userSub.requestsToday >= 500) {
+    if (userSub.requestsToday >= dailyLimit) {
       return NextResponse.json(
-        { error: 'Limite quotidienne d\'analyses (500) atteinte.' },
+        { error: `Limite quotidienne d'analyses (${dailyLimit}) atteinte pour le forfait ${userSub.tier === 'pro' ? 'Pro' : 'Business'}.` },
         { status: 429 }
       );
     }
 
-    // ✅ 5. Récupérer l'image
+    // ✅ 6. Récupérer l'image
     const formData = await request.formData();
     const image = formData.get('image') as File;
     const prompt = formData.get('prompt') as string || 'Analysez cette image en détail.';
@@ -92,7 +100,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ 6. Vérifier la taille de l'image (max 5MB)
+    // ✅ 7. Vérifier le type MIME
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!allowedTypes.includes(image.type)) {
+      return NextResponse.json(
+        { error: 'Format d\'image non supporté. Utilisez JPEG, PNG ou WEBP.' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ 8. Vérifier la taille de l'image (max 5MB)
     if (image.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { error: 'L\'image ne doit pas dépasser 5 Mo.' },
@@ -100,23 +117,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ 7. Convertir l'image en base64
+    // ✅ 9. Convertir l'image en base64
     const bytes = await image.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64Image = buffer.toString('base64');
 
-    // ✅ 8. Appeler l'API OpenAI Vision
+    // ✅ 10. Appeler l'API OpenAI Vision
     const openaiApiKey = process.env.OPENAI_API_KEY;
     
     if (!openaiApiKey) {
       console.error('❌ OPENAI_API_KEY non configurée');
       return NextResponse.json({
-        analysis: '⚠️ Service d\'analyse d\'image temporairement indisponible. Veuillez réessayer plus tard.',
+        analysis: '⚠️ Service d\'analyse d\'image temporairement indisponible.',
         error: 'Configuration API manquante'
       }, { status: 500 });
     }
 
-    // ✅ 9. Appel à GPT-4 Vision
+    // ✅ 11. Appel à GPT-4 Vision
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -147,12 +164,13 @@ export async function POST(request: NextRequest) {
       const errorData = await openaiResponse.json();
       console.error('❌ OpenAI API error:', errorData);
       
-      // Message d'erreur plus clair
       let errorMessage = 'Erreur lors de l\'analyse de l\'image.';
       if (errorData.error?.code === 'insufficient_quota') {
         errorMessage = 'Quota API dépassé. Veuillez réessayer plus tard.';
       } else if (errorData.error?.code === 'invalid_api_key') {
         errorMessage = 'Configuration API invalide.';
+      } else if (errorData.error?.code === 'rate_limit_exceeded') {
+        errorMessage = 'Trop de requêtes. Veuillez patienter.';
       }
       
       return NextResponse.json(
@@ -165,12 +183,13 @@ export async function POST(request: NextRequest) {
     const analysis = openaiData.choices?.[0]?.message?.content || 
                     'Impossible d\'analyser l\'image. Veuillez réessayer.';
 
-    // ✅ 10. Incrémenter le compteur
+    // ✅ 12. Incrémenter le compteur
     userSub.requestsToday++;
 
     return NextResponse.json({ 
       analysis,
-      remaining: (userSub.tier === 'pro' ? 50 : 500) - userSub.requestsToday
+      remaining: dailyLimit - userSub.requestsToday,
+      tier: userSub.tier
     });
     
   } catch (error) {
@@ -184,22 +203,38 @@ export async function POST(request: NextRequest) {
 
 // ✅ GET pour vérifier le statut d'abonnement
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-  }
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
 
-  const piAccessToken = authHeader.replace('Bearer ', '');
-  const userId = await verifyPiToken(piAccessToken);
-  
-  if (!userId) {
-    return NextResponse.json({ error: 'Token invalide' }, { status: 401 });
-  }
+    const piAccessToken = authHeader.replace('Bearer ', '');
+    const userId = await verifyPiToken(piAccessToken);
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Token invalide' }, { status: 401 });
+    }
 
-  const userSub = userSubscriptions.get(userId);
-  return NextResponse.json({
-    tier: userSub?.tier || 'free',
-    requestsToday: userSub?.requestsToday || 0,
-    limit: userSub?.tier === 'pro' ? 50 : userSub?.tier === 'business' ? 500 : 0
-  });
+    initializeUser(userId);
+    const userSub = userSubscriptions.get(userId);
+    
+    const today = new Date().toDateString();
+    if (userSub && userSub.lastResetDate !== today) {
+      userSub.requestsToday = 0;
+      userSub.lastResetDate = today;
+    }
+    
+    const dailyLimit = userSub?.tier === 'pro' ? 50 : userSub?.tier === 'business' ? 500 : 0;
+    
+    return NextResponse.json({
+      tier: userSub?.tier || 'free',
+      requestsToday: userSub?.requestsToday || 0,
+      remaining: dailyLimit - (userSub?.requestsToday || 0),
+      limit: dailyLimit
+    });
+  } catch (error) {
+    console.error('❌ Error in GET:', error);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  }
 }
