@@ -123,7 +123,7 @@ export async function callOpenAIAPI(userMessage: string, history?: any[]) {
 
 // Fonction principale qui utilise le fournisseur par défaut
 export async function callAIAPI(userMessage: string, history?: any[]) {
-  if (DEFAULT_PROVIDER === "openai") {
+  if (DEFAULT_PROVIDER === "groq") {
     return callOpenAIAPI(userMessage, history);
   } else {
     return callGroqAPI(userMessage, history);
