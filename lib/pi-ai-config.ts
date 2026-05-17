@@ -66,4 +66,4 @@ export async function callGroqAPI(userMessage: string, history?: any[]) {
   }
 }
 
-export const callGeminiAPI = callGroqAPI;
+export const callGeminiAPI = callGroqAPI;utsa
