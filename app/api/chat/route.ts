@@ -5,16 +5,51 @@ import { NextRequest } from 'next/server'
 // 🔑 Votre clé Groq
 const GROQ_API_KEY = "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"
 
+// 🔍 Fonction pour détecter automatiquement la langue
+function detectLanguage(text: string): string {
+  const textLower = text.toLowerCase()
+  
+  // Mots-clés portugais
+  const portugueseKeywords = ['obrigado', 'obrigada', 'por favor', 'oi', 'olá', 'tudo bem', 'como vai', 'obg', 'bom dia', 'boa tarde', 'boa noite', 'legal', 'amigo']
+  
+  // Mots-clés anglais
+  const englishKeywords = ['hello', 'hi', 'thank you', 'please', 'good morning', 'good afternoon', 'good evening', 'how are you', 'thanks', 'hey']
+  
+  // Mots-clés français
+  const frenchKeywords = ['bonjour', 'merci', 's\'il vous plaît', 'stp', 'svp', 'salut', 'coucou', 'bonsoir', 'comment ça va', 'ça va', 'bonsoir']
+  
+  for (const word of portugueseKeywords) {
+    if (textLower.includes(word)) return 'pt'
+  }
+  
+  for (const word of englishKeywords) {
+    if (textLower.includes(word)) return 'en'
+  }
+  
+  for (const word of frenchKeywords) {
+    if (textLower.includes(word)) return 'fr'
+  }
+  
+  return 'fr' // Par défaut
+}
+
 export async function POST(request: NextRequest) {
   let language = 'fr'
 
   try {
     const body = await request.json()
-    const { message } = body
-    language = body.language || 'fr'
+    let { message } = body
+    
+    // Détection automatique de la langue
+    const detectedLanguage = detectLanguage(message)
+    
+    // Si l'utilisateur a choisi une langue manuellement, on utilise celle-ci
+    // Sinon on utilise la langue détectée
+    language = body.language || detectedLanguage
     
     console.log("📩 Message reçu:", message)
-    console.log("🌍 Langue détectée:", language)
+    console.log("🔍 Langue détectée automatiquement:", detectedLanguage)
+    console.log("🌍 Langue utilisée pour la réponse:", language)
 
     if (!message) {
       return Response.json({ error: "Message requis" }, { status: 400 })
@@ -22,7 +57,6 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = getSystemPrompt(language)
 
-    // ✅ Méthode alternative : passer la clé via l'environnement
     process.env.GROQ_API_KEY = GROQ_API_KEY
 
     const { text } = await generateText({
@@ -66,6 +100,7 @@ function getSystemPrompt(lang: string): string {
 - Utilise des emojis (🇧🇫, 🇦🇴, 🌾, 🐄, 🐟, 🏭)
 - Donne des conseils pratiques avec des chiffres précis
 - Cite les localités comme Bama, Bagré, Kompienga, Huambo, Cunene
+- Si l'utilisateur ne mentionne pas son pays, demande-le lui
 
 Commence chaque réponse par un emoji pertinent.`,
 
@@ -90,6 +125,7 @@ Commence chaque réponse par un emoji pertinent.`,
 - Use emojis (🇧🇫, 🇦🇴, 🌾, 🐄, 🐟, 🏭)
 - Dê conselhos práticos com números precisos
 - Cite localidades como Bama, Bagré, Huambo, Cunene
+- Se o usuário não mencionar seu país, pergunte a ele
 
 Comece cada resposta com um emoji relevante.`,
 
@@ -114,6 +150,7 @@ Comece cada resposta com um emoji relevante.`,
 - Use emojis (🇧🇫, 🇦🇴, 🌾, 🐄, 🐟, 🏭)
 - Give practical advice with precise numbers
 - Mention localities like Bama, Bagré, Huambo, Cunene
+- If the user doesn't mention their country, ask for it
 
 Start each response with a relevant emoji.`
   }
