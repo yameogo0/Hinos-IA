@@ -3,7 +3,7 @@ import { generateText } from 'ai'
 import { NextRequest } from 'next/server'
 
 // 🔑 Votre clé Groq (à remplacer par la vôtre)
-const GROQ_API_KEY = "gsk_IMarfeN5dvrQc7i1WGdyb3FY6Fqv5mOk9vDPNJOPdPqZnuWk"
+const GROQ_API_KEY = "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"
 
 export async function POST(request: NextRequest) {
   let language = 'fr' // Déclarer language ici pour l'avoir dans le catch
