@@ -2,12 +2,16 @@ import { groq } from '@ai-sdk/groq'
 import { generateText } from 'ai'
 import { NextRequest } from 'next/server'
 
-// 🔑 Votre clé Groq (à remplacer par la vôtre)
-const GROQ_API_KEY = "gsk_IMarfeN5dvrQc7i1WGdyb3FY6Fqv5mOk9vDPNJOPdPqZnuWk"
+// 🔑 Votre clé Groq
+const GROQ_API_KEY = "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"
 
 export async function POST(request: NextRequest) {
+  let language = 'fr'
+
   try {
-    const { message, language = 'fr' } = await request.json()
+    const body = await request.json()
+    const { message } = body
+    language = body.language || 'fr'
     
     console.log("📩 Message reçu:", message)
     console.log("🌍 Langue détectée:", language)
@@ -16,13 +20,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Message requis" }, { status: 400 })
     }
 
-    // Système prompt multilingue
     const systemPrompt = getSystemPrompt(language)
 
+    // ✅ Méthode alternative : passer la clé via l'environnement
+    process.env.GROQ_API_KEY = GROQ_API_KEY
+
     const { text } = await generateText({
-      model: groq('llama-3.3-70b-versatile', {
-        apiKey: GROQ_API_KEY  // ← Clé ajoutée ici
-      }),
+      model: groq('llama-3.3-70b-versatile'),
       prompt: message,
       system: systemPrompt,
       temperature: 0.7,
@@ -34,7 +38,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("❌ Erreur:", error.message)
     return Response.json({ 
-      response: getErrorMessage(language) 
+      response: getErrorMessage(language)
     })
   }
 }
