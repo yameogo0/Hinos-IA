@@ -6,8 +6,12 @@ import { NextRequest } from 'next/server'
 const GROQ_API_KEY = "gsk_IMarfeN5dvrQc7i1WGdyb3FY6Fqv5mOk9vDPNJOPdPqZnuWk"
 
 export async function POST(request: NextRequest) {
+  let language = 'fr' // Déclarer language ici pour l'avoir dans le catch
+
   try {
-    const { message, language = 'fr' } = await request.json()
+    const body = await request.json()
+    const { message } = body
+    language = body.language || 'fr'
     
     console.log("📩 Message reçu:", message)
     console.log("🌍 Langue détectée:", language)
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     const { text } = await generateText({
       model: groq('llama-3.3-70b-versatile', {
-        apiKey: GROQ_API_KEY  // ← Clé ajoutée ici
+        apiKey: GROQ_API_KEY
       }),
       prompt: message,
       system: systemPrompt,
@@ -34,7 +38,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("❌ Erreur:", error.message)
     return Response.json({ 
-      response: getErrorMessage(language) 
+      response: getErrorMessage(language) // ✅ language est maintenant défini
     })
   }
 }
