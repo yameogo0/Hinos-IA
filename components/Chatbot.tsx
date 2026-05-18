@@ -176,10 +176,11 @@ export default function Chatbot() {
     }])
 
     try {
+      // ✅ CORRECTION ICI : On n'envoie PAS la langue, le backend la détecte automatiquement
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, language: language })
+        body: JSON.stringify({ message: trimmed })  // ← language supprimé
       })
       const data = await response.json()
       
@@ -271,8 +272,21 @@ export default function Chatbot() {
 
       <div className="border-t p-4 bg-white">
         <div className="flex gap-2">
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={handleKeyPress} placeholder={placeholders[language]} className="flex-1 px-4 py-2 border rounded-xl" />
-          <button onClick={sendMessage} disabled={isLoading || !input.trim()} className="bg-purple-600 text-white px-5 py-2 rounded-xl">Envoyer</button>
+          <input 
+            type="text" 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyPress={handleKeyPress} 
+            placeholder={placeholders[language]} 
+            className="flex-1 px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500" 
+          />
+          <button 
+            onClick={sendMessage} 
+            disabled={isLoading || !input.trim()} 
+            className="bg-purple-600 text-white px-5 py-2 rounded-xl hover:bg-purple-700 transition disabled:opacity-50"
+          >
+            Envoyer
+          </button>
         </div>
       </div>
 
